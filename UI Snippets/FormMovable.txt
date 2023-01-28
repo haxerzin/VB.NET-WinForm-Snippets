@@ -1,0 +1,18 @@
+Public Shared Sub MakeMovable(form As Form)
+    Dim moveMouseDown As Boolean = False
+    Dim offset As Point
+    AddHandler form.MouseDown, Sub(sender As Object, e As MouseEventArgs)
+        If e.Button = MouseButtons.Left Then
+            offset = e.Location
+            moveMouseDown = True
+        End If
+    End Sub
+    AddHandler form.MouseMove, Sub(sender As Object, e As MouseEventArgs)
+        If moveMouseDown Then
+            form.Location = New Point(e.X - offset.X + form.Left, e.Y - offset.Y + form.Top)
+        End If
+    End Sub
+    AddHandler form.MouseUp, Sub(sender As Object, e As MouseEventArgs)
+        moveMouseDown = False
+    End Sub
+End Sub

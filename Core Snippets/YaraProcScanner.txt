@@ -1,0 +1,33 @@
+Imports System.Diagnostics
+Imports YaraSharp
+
+Public Shared Sub MonitorProcessWithYara(processName As String, yaraRuleFile As String)
+    Dim yara As New Yara()
+    yara.LoadRules(yaraRuleFile)
+
+    Dim process As Process = Nothing
+    Try
+        process = Process.GetProcessesByName(processName).First()
+    Catch ex As Exception
+        Console.WriteLine("Error: Could not find process with name '{0}'", processName)
+        Exit Sub
+    End Try
+
+    Dim processMonitor As New PerformanceCounter("Process", "Working Set - Private", processName)
+    Dim previousWorkingSet As Long = 0
+
+    While True
+        Dim workingSet As Long = processMonitor.NextValue()
+        If workingSet <> previousWorkingSet Then
+            previousWorkingSet = workingSet
+            Dim processMemory As Byte() = New Byte(workingSet - 1) {}
+            Dim handle As IntPtr = process.Handle
+            Dim bytesRead As Int32
+            ReadProcessMemory(handle, process.MainModule.BaseAddress, processMemory, workingSet, bytesRead)
+            Dim matches As IList(Of Match) = yara.Scan(processMemory)
+            If matches.Count > 0 Then
+                Console.WriteLine("Threat detected: {0}", matches(0).Rule)
+            End If
+        End If
+    End While
+End Sub

@@ -1,0 +1,58 @@
+Public Class Network
+    Private Shared _lastCheck As DateTime = DateTime.MinValue
+    Private Shared _lastPing As Ping = New Ping()
+    Private Shared _lastPingReply As PingReply = Nothing
+
+    Public Shared ReadOnly Property IsConnected As Boolean
+        Get
+            If _lastPingReply IsNot Nothing AndAlso _lastPingReply.Status = IPStatus.Success AndAlso DateTime.Now.Subtract(_lastCheck).TotalSeconds < 30 Then
+                Return True
+            Else
+                _lastCheck = DateTime.Now
+                Try
+                    _lastPingReply = _lastPing.Send("8.8.8.8", 1000)
+                    If _lastPingReply.Status = IPStatus.Success Then
+                        Return True
+                    Else
+                        Return False
+                    End If
+                Catch ex As Exception
+                    Return False
+                End Try
+            End If
+        End Get
+    End Property
+
+    Public Shared ReadOnly Property InternetSpeed As Integer
+        Get
+            If IsConnected Then
+                Return CInt(_lastPingReply.RoundtripTime)
+            Else
+                Return -1
+            End If
+        End Get
+    End Property
+
+    Public Shared ReadOnly Property PublicIP As String
+        Get
+            Try
+                Using wc As New WebClient()
+                    Return wc.DownloadString("https://checkip.dyndns.org/")
+                End Using
+            Catch ex As Exception
+                Return ""
+            End Try
+        End Get
+    End Property
+End Class
+
+
+// usage //
+
+If Network.IsConnected then
+    Console.WriteLine("Internet is connected")
+else
+    Console.WriteLine("Internet is not connected")
+End If
+Console.WriteLine("Internet Speed: " + Network.InternetSpeed.ToString() + " KBps")
+Console.WriteLine("Public IP: " + Network.PublicIP)
