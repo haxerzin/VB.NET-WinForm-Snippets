@@ -1,0 +1,6 @@
+Public Shared Sub GatherProcessListAndScan()
+    Dim processList As Process() = Process.GetProcesses()
+    For Each proc As Process In processList
+        ProcSampleScannerSub(proc)
+    Next
+End Sub

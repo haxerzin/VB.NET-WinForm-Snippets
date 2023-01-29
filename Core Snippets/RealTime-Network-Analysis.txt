@@ -1,0 +1,45 @@
+Public Shared Sub MonitorProcessConnections(ByVal processName As String, ByVal blocklistPath As String)
+    Dim blocklist As New List(Of String)()
+    Using reader As New StreamReader(blocklistPath)
+        While Not reader.EndOfStream
+            blocklist.Add(reader.ReadLine())
+        End While
+    End Using
+
+    Dim process As Process() = Process.GetProcessesByName(processName)
+    If process.Length = 0 Then
+        Throw New Exception("Process not found.")
+    End If
+
+    Dim processHandle As IntPtr = OpenProcess(PROCESS_ALL_ACCESS, False, process(0).Id)
+    If processHandle = IntPtr.Zero Then
+        Throw New Exception("Could not open process handle.")
+    End If
+
+    Dim connection As MIB_TCP_ROW_OWNER_PID
+    Dim connections As New List(Of MIB_TCP_ROW_OWNER_PID)()
+    Dim bufferSize As UInteger = 0
+    GetExtendedTcpTable(IntPtr.Zero, bufferSize, True, AF_INET, TCP_TABLE_OWNER_PID_ALL, 0)
+    Dim buffer As IntPtr = Marshal.AllocHGlobal(CInt(bufferSize))
+    Try
+        GetExtendedTcpTable(buffer, bufferSize, True, AF_INET, TCP_TABLE_OWNER_PID_ALL, 0)
+        Dim table As PMIB_TCP_TABLE_OWNER_PID = CType(Marshal.PtrToStructure(buffer, GetType(PMIB_TCP_TABLE_OWNER_PID)), PMIB_TCP_TABLE_OWNER_PID)
+        For i As Integer = 0 To CInt(table.dwNumEntries) - 1
+            Dim rowPtr As IntPtr = New IntPtr(buffer.ToInt64() + Marshal.SizeOf(GetType(PMIB_TCP_TABLE_OWNER_PID)) + (Marshal.SizeOf(GetType(MIB_TCP_ROW_OWNER_PID)) * i))
+            connection = CType(Marshal.PtrToStructure(rowPtr, GetType(MIB_TCP_ROW_OWNER_PID)), MIB_TCP_ROW_OWNER_PID)
+            If connection.dwOwningPid = process(0).Id Then
+                connections.Add(connection)
+            End If
+        Next
+    Finally
+        Marshal.FreeHGlobal(buffer)
+    End Try
+
+    For Each connection In connections
+        Dim ip As IPAddress = New IPAddress(connection.dwRemoteAddr)
+        Dim host As IPHostEntry = Dns.GetHostEntry(ip)
+        If blocklist.Contains(host.HostName) OrElse blocklist.Contains(ip.ToString()) Then
+            Console.WriteLine("Blocked connection: " & host.HostName & "(" & ip.ToString() & ")")
+        End If
+    Next
+End Sub
