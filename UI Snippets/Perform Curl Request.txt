@@ -1,0 +1,22 @@
+    Public Shared Async Function PerformCurlGetRequest(url As String, fileName As String) As Task
+        Try
+            If Not File.Exists(fileName) Then
+                Using writer As StreamWriter = New StreamWriter(fileName, False)
+                    Await writer.WriteAsync("Initial file content")
+                End Using
+            End If
+
+            Using client As New HttpClient()
+                Dim response As HttpResponseMessage = Await client.GetAsync(url)
+                response.EnsureSuccessStatusCode()
+                Dim content As String = Await response.Content.ReadAsStringAsync()
+
+                Using writer As StreamWriter = New StreamWriter(fileName, False)
+                    Await writer.WriteAsync(content)
+                End Using
+            End Using
+        Catch ex As Exception
+            ' Handle the exception here
+            Console.WriteLine("Error performing cURL GET request: " + ex.Message)
+        End Try
+    End Function
