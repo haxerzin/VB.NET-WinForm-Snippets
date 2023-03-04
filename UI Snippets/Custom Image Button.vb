@@ -1,5 +1,8 @@
 Imports System.ComponentModel
 
+' requires: a form called MainWindow to have isMenuWide public boolean
+' this button control is part of my project's menu item
+
 Public Class CustomButton
     Inherits Button
 
